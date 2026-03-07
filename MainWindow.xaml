@@ -1,0 +1,349 @@
+<Window x:Class="FileRenamer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FileRenamer"
+        mc:Ignorable="d"
+        Title="File Renamer"
+        Height="450"
+        Width="800"
+        MinWidth="600"
+        MinHeight="400">
+    <Grid Margin="6">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Top bar with icon, title, and Close button -->
+        <Border Grid.Row="0"
+                Padding="4"
+                Background="#FFE6F0FF"
+                CornerRadius="4">
+            <DockPanel LastChildFill="False">
+                <StackPanel Orientation="Horizontal"
+                            DockPanel.Dock="Left"
+                            VerticalAlignment="Center">
+                    <!-- Simple vector icon representing a file with a rename arrow -->
+                    <Viewbox Width="20"
+                             Height="20"
+                             Margin="0,0,4,0">
+                        <Canvas Width="16" Height="16">
+                            <Path Fill="#FF4C8BF5"
+                                  Data="M3,1 L9,1 L13,5 L13,15 L3,15 Z" />
+                            <Path Fill="#FF4C8BF5"
+                                  Data="M9,1 L9,5 L13,5 Z" />
+                            <Path Fill="#FF2DAF5A"
+                                  Data="M4,9 L8,9 L8,7 L12,11 L8,15 L8,13 L4,13 Z" />
+                        </Canvas>
+                    </Viewbox>
+                    <TextBlock Text="File Renamer"
+                               FontSize="20"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Button x:Name="CloseButton"
+                        Content="Close"
+                        Width="80"
+                        Margin="4,0,0,0"
+                        Padding="6,2"
+                        DockPanel.Dock="Right"
+                        VerticalAlignment="Center"
+                        Click="CloseButton_Click" />
+            </DockPanel>
+        </Border>
+
+        <!-- Folder section -->
+        <GroupBox Grid.Row="1"
+                  Header="Folder"
+                  Margin="0,4,0,4"
+                  Padding="4">
+            <Grid Margin="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="SelectedFolderTextBlock"
+                           Grid.Column="0"
+                           Margin="0,0,4,0"
+                           FontSize="14"
+                           FontWeight="Bold"
+                           Text="No folder selected."
+                           TextWrapping="Wrap" />
+
+                <Button x:Name="SelectFolderButton"
+                        Grid.Column="1"
+                        Content="Select Folder"
+                        Padding="6,2"
+                        MinWidth="90"
+                        Click="SelectFolderButton_Click" />
+            </Grid>
+        </GroupBox>
+
+        <!-- Tabs for Files and Renaming -->
+        <TabControl Grid.Row="2"
+                    Margin="0"
+                    Padding="0">
+            <TabItem Header="Files">
+                <Grid Margin="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="5*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- File List (left) -->
+                    <Grid Grid.Column="0"
+                          Margin="0,0,4,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0"
+                                    Orientation="Horizontal"
+                                    Margin="0,0,0,4">
+                            <Button x:Name="CheckAllButton"
+                                    Content="Check All"
+                                    FontSize="11"
+                                    Margin="0,0,4,0"
+                                    Padding="4,1"
+                                    Click="CheckAllButton_Click" />
+                            <Button x:Name="UncheckAllButton"
+                                    Content="Uncheck All"
+                                    FontSize="11"
+                                    Margin="0,0,4,0"
+                                    Padding="4,1"
+                                    Click="UncheckAllButton_Click" />
+                            <Button x:Name="DeleteCheckedButton"
+                                    Content="Delete Checked"
+                                    FontSize="11"
+                                    Padding="4,1"
+                                    Click="DeleteCheckedButton_Click" />
+                        </StackPanel>
+
+                        <ListView x:Name="FilesListView"
+                                  Grid.Row="1"
+                                  SelectionMode="Single"
+                                  SelectionChanged="FilesListView_SelectionChanged">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,1">
+                                        <CheckBox Margin="0,0,4,0"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="{Binding Name}"
+                                                   VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+
+                    <!-- View (right) -->
+                    <Grid Grid.Column="1"
+                          Margin="4,0,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border x:Name="PreviewArea"
+                                Grid.Row="0"
+                                BorderBrush="#FFCCCCCC"
+                                BorderThickness="1"
+                                Background="White"
+                                PreviewMouseWheel="View_PreviewMouseWheel">
+                            <Grid>
+                                <TextBlock x:Name="PreviewPlaceholderTextBlock"
+                                           Text="Select a JPG file from the list to preview it here."
+                                           Foreground="#FF777777"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           Margin="8" />
+                                <Viewbox Stretch="Uniform"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center">
+                                    <Image x:Name="PreviewImage"
+                                           Stretch="None"
+                                           Visibility="Collapsed" />
+                                </Viewbox>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Row="1"
+                                    Orientation="Horizontal"
+                                    HorizontalAlignment="Right"
+                                    Margin="0,4,0,0">
+                            <Button x:Name="PreviousButton"
+                                    Content="Previous"
+                                    Width="80"
+                                    Margin="0,0,4,0"
+                                    Padding="6,2"
+                                    Click="PreviousButton_Click" />
+                            <Button x:Name="NextButton"
+                                    Content="Next"
+                                    Width="80"
+                                    Margin="0,0,4,0"
+                                    Padding="6,2"
+                                    Click="NextButton_Click" />
+                            <Button x:Name="DeleteCurrentButton"
+                                    Content="Delete"
+                                    Width="80"
+                                    Padding="6,2"
+                                    Click="DeleteCurrentButton_Click" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Renaming">
+                <Grid Margin="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Filter Files section -->
+                    <GroupBox Grid.Row="0"
+                              Header="Filter Files"
+                              Margin="0,0,0,8"
+                              Padding="6">
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="FilterEnabledCheckBox"
+                                      Content="Enabled"
+                                      VerticalAlignment="Center"
+                                      Margin="0,0,12,0"
+                                      Checked="RenamingSection_Changed"
+                                      Unchecked="RenamingSection_Changed" />
+                            <TextBlock Text="Filter text:"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,4,0" />
+                            <TextBox x:Name="FilterTextTextBox"
+                                     Width="200"
+                                     MaxLength="25"
+                                     VerticalAlignment="Center"
+                                     TextChanged="FilterTextTextBox_TextChanged" />
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- Configuration section -->
+                    <GroupBox Grid.Row="1"
+                              Header="Configuration"
+                              Margin="0,0,0,8"
+                              Padding="6">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal"
+                                         Margin="0,0,0,6">
+                                <CheckBox x:Name="PrependEnabledCheckBox"
+                                          Content="Enabled"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,12,0"
+                                          Checked="RenamingSection_Changed"
+                                          Unchecked="RenamingSection_Changed" />
+                                <TextBlock Text="Prepend Text:"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,4,0" />
+                                <TextBox x:Name="PrependTextTextBox"
+                                         Width="200"
+                                         MaxLength="25"
+                                         VerticalAlignment="Center"
+                                         TextChanged="PrependTextTextBox_TextChanged" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal"
+                                         Margin="0,0,0,6">
+                                <CheckBox x:Name="AppendEnabledCheckBox"
+                                          Content="Enabled"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,12,0"
+                                          Checked="RenamingSection_Changed"
+                                          Unchecked="RenamingSection_Changed" />
+                                <TextBlock Text="Append Text:"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,4,0" />
+                                <TextBox x:Name="AppendTextTextBox"
+                                         Width="200"
+                                         MaxLength="25"
+                                         VerticalAlignment="Center"
+                                         TextChanged="AppendTextTextBox_TextChanged" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox x:Name="ReplaceEnabledCheckBox"
+                                          Content="Enabled"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,12,0"
+                                          Checked="RenamingSection_Changed"
+                                          Unchecked="RenamingSection_Changed" />
+                                <TextBlock Text="Replace:"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,4,0" />
+                                <TextBox x:Name="ReplaceFindTextBox"
+                                         Width="120"
+                                         MaxLength="25"
+                                         VerticalAlignment="Center"
+                                         TextChanged="ReplaceConfigurationTextBox_TextChanged" />
+                                <TextBlock Text="with"
+                                           VerticalAlignment="Center"
+                                           Margin="8,0,4,0" />
+                                <TextBox x:Name="ReplaceWithTextBox"
+                                         Width="120"
+                                         MaxLength="25"
+                                         VerticalAlignment="Center"
+                                         TextChanged="ReplaceConfigurationTextBox_TextChanged" />
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- File Names section (expands to fill available space) -->
+                    <GroupBox Grid.Row="2"
+                              Header="File Names"
+                              Margin="0,0,0,8"
+                              Padding="6">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                       Text="Selected Files"
+                                       FontWeight="Bold"
+                                       Margin="0,0,0,4" />
+                            <ListBox x:Name="SelectedFilesListBox"
+                                     Grid.Row="1" Grid.Column="0"
+                                     MinHeight="120" />
+                            <TextBlock Grid.Row="0" Grid.Column="2"
+                                       Text="Proposed New File Names"
+                                       FontWeight="Bold"
+                                       Margin="0,0,0,4" />
+                            <ListBox x:Name="ProposedNamesListBox"
+                                     Grid.Row="1" Grid.Column="2"
+                                     MinHeight="120" />
+                        </Grid>
+                    </GroupBox>
+
+                    <!-- Actions section (pinned to bottom) -->
+                    <GroupBox Grid.Row="3"
+                              Header="Actions"
+                              Margin="0,0,0,0"
+                              Padding="6">
+                        <Button x:Name="RenameFilesButton"
+                                Content="Rename Files"
+                                HorizontalAlignment="Left"
+                                Padding="12,6"
+                                Click="RenameFilesButton_Click" />
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
