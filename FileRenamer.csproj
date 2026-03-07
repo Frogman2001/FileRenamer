@@ -8,4 +8,8 @@
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Resource Include="AppIcon.png" />
+  </ItemGroup>
+
 </Project>

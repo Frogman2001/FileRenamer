@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -518,9 +519,20 @@ namespace FileRenamer
                 }
             }
 
+            var countToRename = 0;
+            for (var i = 0; i < _selectedFileNames.Count; i++)
+            {
+                if (!string.Equals(_selectedFileNames[i], _proposedFileNames[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    countToRename++;
+                }
+            }
+
             var confirm = MessageBox.Show(
                 this,
-                $"Rename {_selectedFileNames.Count} file(s)?",
+                countToRename == 0
+                    ? "No files need renaming (selected names match proposed names)."
+                    : $"{countToRename} file(s) will be renamed if you proceed. Do you want to continue?",
                 "Rename Files",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
@@ -530,7 +542,18 @@ namespace FileRenamer
                 return;
             }
 
+            if (countToRename == 0)
+            {
+                LoadFiles(_selectedFolderPath);
+                return;
+            }
+
+            var runTimeUtc = DateTime.UtcNow;
+            var runTimeLocal = DateTime.Now;
+            var logEntries = new List<RenameLogEntry>();
             var errors = new List<string>();
+            var renamedCount = 0;
+
             for (var i = 0; i < _selectedFileNames.Count; i++)
             {
                 var originalName = _selectedFileNames[i];
@@ -548,23 +571,80 @@ namespace FileRenamer
                     if (File.Exists(sourcePath))
                     {
                         File.Move(sourcePath, destPath);
+                        renamedCount++;
+                        logEntries.Add(new RenameLogEntry(originalName, proposedName, true, null));
+                    }
+                    else
+                    {
+                        logEntries.Add(new RenameLogEntry(originalName, proposedName, false, "File not found."));
+                        errors.Add($"{originalName}: File not found.");
                     }
                 }
                 catch (Exception ex)
                 {
+                    logEntries.Add(new RenameLogEntry(originalName, proposedName, false, ex.Message));
                     errors.Add($"{originalName}: {ex.Message}");
                 }
+            }
+
+            var config = new RenameLogConfiguration(
+                FilterEnabledCheckBox.IsChecked == true,
+                FilterTextTextBox.Text ?? string.Empty,
+                PrependEnabledCheckBox.IsChecked == true,
+                PrependTextTextBox.Text ?? string.Empty,
+                AppendEnabledCheckBox.IsChecked == true,
+                AppendTextTextBox.Text ?? string.Empty,
+                ReplaceEnabledCheckBox.IsChecked == true,
+                ReplaceFindTextBox.Text ?? string.Empty,
+                ReplaceWithTextBox.Text ?? string.Empty);
+
+            var logModel = new RenameLogFile(
+                runTimeUtc,
+                runTimeLocal,
+                _selectedFolderPath,
+                config,
+                logEntries,
+                logEntries.Count,
+                renamedCount);
+
+            var timestamp = runTimeLocal.ToString("yyyyMMdd_HHmmss");
+            var logFileName = $"zz_FileRenamerLog{timestamp}.json";
+            var logPath = Path.Combine(_selectedFolderPath, logFileName);
+
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                var json = JsonSerializer.Serialize(logModel, options);
+                File.WriteAllText(logPath, json);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    this,
+                    $"Renames completed, but the log file could not be written.\n\n{ex.Message}",
+                    "Log File Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
 
             if (errors.Count > 0)
             {
                 MessageBox.Show(
                     this,
-                    "Some renames failed:\n\n" + string.Join("\n", errors.Take(10)) +
-                    (errors.Count > 10 ? "\n..." : ""),
+                    $"{renamedCount} file(s) renamed successfully. {errors.Count} failed.\n\nLog saved as: {logFileName}\n\nErrors:\n" +
+                    string.Join("\n", errors.Take(10)) + (errors.Count > 10 ? "\n..." : ""),
                     "Rename Files",
                     MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                    MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show(
+                    this,
+                    $"{renamedCount} file(s) renamed successfully.\n\nLog saved as: {logFileName}",
+                    "Rename Files",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
             }
 
             LoadFiles(_selectedFolderPath);
@@ -598,6 +678,81 @@ namespace FileRenamer
             protected virtual void OnPropertyChanged(string propertyName)
             {
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
+
+        private sealed class RenameLogEntry
+        {
+            public string OriginalName { get; }
+            public string NewName { get; }
+            public bool Success { get; }
+            public string? Error { get; }
+
+            public RenameLogEntry(string originalName, string newName, bool success, string? error)
+            {
+                OriginalName = originalName;
+                NewName = newName;
+                Success = success;
+                Error = error;
+            }
+        }
+
+        private sealed class RenameLogConfiguration
+        {
+            public bool FilterEnabled { get; }
+            public string FilterText { get; }
+            public bool PrependEnabled { get; }
+            public string PrependText { get; }
+            public bool AppendEnabled { get; }
+            public string AppendText { get; }
+            public bool ReplaceEnabled { get; }
+            public string ReplaceFind { get; }
+            public string ReplaceWith { get; }
+
+            public RenameLogConfiguration(
+                bool filterEnabled, string filterText,
+                bool prependEnabled, string prependText,
+                bool appendEnabled, string appendText,
+                bool replaceEnabled, string replaceFind, string replaceWith)
+            {
+                FilterEnabled = filterEnabled;
+                FilterText = filterText;
+                PrependEnabled = prependEnabled;
+                PrependText = prependText;
+                AppendEnabled = appendEnabled;
+                AppendText = appendText;
+                ReplaceEnabled = replaceEnabled;
+                ReplaceFind = replaceFind;
+                ReplaceWith = replaceWith;
+            }
+        }
+
+        private sealed class RenameLogFile
+        {
+            public DateTime RunTimeUtc { get; }
+            public DateTime RunTimeLocal { get; }
+            public string FolderPath { get; }
+            public RenameLogConfiguration Configuration { get; }
+            public IReadOnlyList<RenameLogEntry> Entries { get; }
+            public int TotalAttempted { get; }
+            public int TotalRenamed { get; }
+
+            public RenameLogFile(
+                DateTime runTimeUtc,
+                DateTime runTimeLocal,
+                string folderPath,
+                RenameLogConfiguration configuration,
+                IReadOnlyList<RenameLogEntry> entries,
+                int totalAttempted,
+                int totalRenamed)
+            {
+                RunTimeUtc = runTimeUtc;
+                RunTimeLocal = runTimeLocal;
+                FolderPath = folderPath;
+                Configuration = configuration;
+                Entries = entries;
+                TotalAttempted = totalAttempted;
+                TotalRenamed = totalRenamed;
             }
         }
     }
