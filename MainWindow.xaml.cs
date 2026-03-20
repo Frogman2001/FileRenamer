@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using WinForms = System.Windows.Forms;
 
 namespace FileRenamer
@@ -82,7 +83,10 @@ namespace FileRenamer
 
                 if (_files.Count > 0)
                 {
-                    FilesListView.SelectedIndex = 0;
+                    // Defer selection until list containers exist so the row highlights and preview stay in sync.
+                    Dispatcher.BeginInvoke(
+                        new Action(SelectFirstFileInListAndFocus),
+                        DispatcherPriority.Loaded);
                 }
 
                 RefreshRenamingLists();
@@ -191,6 +195,18 @@ namespace FileRenamer
             MoveToOffset(-1);
         }
 
+        private void SelectFirstFileInListAndFocus()
+        {
+            if (_files.Count == 0)
+            {
+                return;
+            }
+
+            FilesListView.SelectedIndex = 0;
+            FilesListView.ScrollIntoView(FilesListView.SelectedItem);
+            FilesListView.Focus();
+        }
+
         private void MoveToOffset(int offset)
         {
             if (_files.Count == 0)
@@ -216,6 +232,92 @@ namespace FileRenamer
 
             FilesListView.SelectedIndex = newIndex;
             FilesListView.ScrollIntoView(FilesListView.SelectedItem);
+        }
+
+        private static bool IsKeyboardFocusInEditableText()
+        {
+            var focused = Keyboard.FocusedElement;
+            return focused is TextBox or RichTextBox or PasswordBox;
+        }
+
+        private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (IsKeyboardFocusInEditableText())
+            {
+                return;
+            }
+
+            switch (e.Key)
+            {
+                case Key.Down:
+                    if (_files.Count > 0)
+                    {
+                        MoveToOffset(1);
+                        e.Handled = true;
+                    }
+
+                    break;
+
+                case Key.Up:
+                    if (_files.Count > 0)
+                    {
+                        MoveToOffset(-1);
+                        e.Handled = true;
+                    }
+
+                    break;
+
+                case Key.Delete:
+                case Key.Back:
+                    if (_files.Count > 0 && _currentIndex >= 0 && _currentIndex < _files.Count)
+                    {
+                        DeleteCurrentFileAfterConfirmation();
+                        e.Handled = true;
+                    }
+
+                    break;
+
+                case Key.Space:
+                    if (FilesListView.IsKeyboardFocusWithin &&
+                        _currentIndex >= 0 &&
+                        _currentIndex < _files.Count)
+                    {
+                        var item = _files[_currentIndex];
+                        item.IsChecked = !item.IsChecked;
+                        e.Handled = true;
+                    }
+
+                    break;
+            }
+        }
+
+        private void DeleteCurrentFileAfterConfirmation()
+        {
+            if (_currentIndex < 0 || _currentIndex >= _files.Count)
+            {
+                return;
+            }
+
+            var current = _files[_currentIndex];
+
+            var confirm = MessageBox.Show(
+                this,
+                $"Are you sure you want to delete \"{current.Name}\"?",
+                "Delete Current File",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (confirm != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            var countBefore = _files.Count;
+            var deleteIndices = new List<int> { _currentIndex };
+            var deleteSet = new HashSet<int> { _currentIndex };
+
+            TryDeleteFile(current);
+            ApplySelectionAfterDeletion(countBefore, deleteSet, deleteIndices);
         }
 
         private void View_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -275,37 +377,29 @@ namespace FileRenamer
                 return;
             }
 
+            var countBefore = _files.Count;
+            var deleteIndices = new List<int>();
+            for (var i = 0; i < countBefore; i++)
+            {
+                if (_files[i].IsChecked)
+                {
+                    deleteIndices.Add(i);
+                }
+            }
+
+            var deleteSet = new HashSet<int>(deleteIndices);
+
             foreach (var item in checkedFiles)
             {
                 TryDeleteFile(item);
             }
 
-            RebuildSelectionAfterDeletion();
+            ApplySelectionAfterDeletion(countBefore, deleteSet, deleteIndices);
         }
 
         private void DeleteCurrentButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentIndex < 0 || _currentIndex >= _files.Count)
-            {
-                return;
-            }
-
-            var current = _files[_currentIndex];
-
-            var confirm = MessageBox.Show(
-                this,
-                $"Are you sure you want to delete \"{current.Name}\"?",
-                "Delete Current File",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (confirm != MessageBoxResult.Yes)
-            {
-                return;
-            }
-
-            TryDeleteFile(current);
-            RebuildSelectionAfterDeletion();
+            DeleteCurrentFileAfterConfirmation();
         }
 
         private void TryDeleteFile(FileItem item)
@@ -330,7 +424,45 @@ namespace FileRenamer
             }
         }
 
-        private void RebuildSelectionAfterDeletion()
+        /// <summary>
+        /// Picks which original (pre-removal) index should be selected: the first item after the
+        /// last removed index, or if none, the last remaining item before that block.
+        /// </summary>
+        private static int? GetOriginalIndexToSelectAfterRemoval(
+            int countBefore,
+            HashSet<int> deleteSet,
+            IReadOnlyList<int> sortedDeleteIndices)
+        {
+            if (sortedDeleteIndices.Count == 0)
+            {
+                return null;
+            }
+
+            var lastDel = sortedDeleteIndices[sortedDeleteIndices.Count - 1];
+
+            for (var j = lastDel + 1; j < countBefore; j++)
+            {
+                if (!deleteSet.Contains(j))
+                {
+                    return j;
+                }
+            }
+
+            for (var j = lastDel - 1; j >= 0; j--)
+            {
+                if (!deleteSet.Contains(j))
+                {
+                    return j;
+                }
+            }
+
+            return null;
+        }
+
+        private void ApplySelectionAfterDeletion(
+            int countBefore,
+            HashSet<int> deleteSet,
+            IReadOnlyList<int> sortedDeleteIndices)
         {
             if (_files.Count == 0)
             {
@@ -339,16 +471,26 @@ namespace FileRenamer
                 return;
             }
 
-            if (_currentIndex >= _files.Count)
-            {
-                _currentIndex = _files.Count - 1;
-            }
-
-            if (_currentIndex < 0)
+            var original = GetOriginalIndexToSelectAfterRemoval(countBefore, deleteSet, sortedDeleteIndices);
+            if (!original.HasValue)
             {
                 _currentIndex = 0;
             }
+            else
+            {
+                var removedBefore = 0;
+                foreach (var d in sortedDeleteIndices)
+                {
+                    if (d < original.Value)
+                    {
+                        removedBefore++;
+                    }
+                }
 
+                _currentIndex = original.Value - removedBefore;
+            }
+
+            _currentIndex = Math.Clamp(_currentIndex, 0, _files.Count - 1);
             FilesListView.SelectedIndex = _currentIndex;
             FilesListView.ScrollIntoView(FilesListView.SelectedItem);
         }
@@ -396,6 +538,17 @@ namespace FileRenamer
         private void RenamingSection_Changed(object sender, RoutedEventArgs e)
         {
             RefreshRenamingLists();
+        }
+
+        private void ResetRenamingConfigurationToDefaults()
+        {
+            PrependEnabledCheckBox.IsChecked = false;
+            PrependTextTextBox.Text = string.Empty;
+            AppendEnabledCheckBox.IsChecked = false;
+            AppendTextTextBox.Text = string.Empty;
+            ReplaceEnabledCheckBox.IsChecked = false;
+            ReplaceFindTextBox.Text = string.Empty;
+            ReplaceWithTextBox.Text = string.Empty;
         }
 
         private void RefreshRenamingLists()
@@ -646,6 +799,8 @@ namespace FileRenamer
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             }
+
+            ResetRenamingConfigurationToDefaults();
 
             LoadFiles(_selectedFolderPath);
         }
