@@ -32,3 +32,17 @@ dotnet run
 ```
 
 Or open the solution in Visual Studio and run from there.
+
+## Publishing
+
+**Framework-dependent** (small output; users need the [.NET 6 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/6.0) x64 installed). Output is under `bin\Release\net6.0-windows\win-x64\publish\`—typically a single `FileRenamer.exe` to copy.
+
+```bash
+dotnet publish -c Release -r win-x64 --no-self-contained
+```
+
+**Self-contained** (larger build; no .NET install required on target machines):
+
+```bash
+dotnet publish -c Release -r win-x64 --self-contained true
+```

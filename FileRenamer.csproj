@@ -9,11 +9,12 @@
     <ApplicationIcon>AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!-- Day-to-day `dotnet build`: no RID → output under bin\...\net6.0-windows\ only. -->
+  <!-- Deploy: `dotnet publish -c Release -r win-x64` → few files; users need .NET 6 Desktop Runtime (x64). -->
   <PropertyGroup>
     <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <SelfContained>false</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>
