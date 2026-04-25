@@ -1,0 +1,24 @@
+---
+description: Keep keyboard shortcuts and Help text in sync
+alwaysApply: true
+---
+
+# Keyboard Shortcut Help Sync
+
+When adding, removing, or changing keyboard and mouse shortcuts, update the in-app Help content in the same change.
+
+## Required updates
+
+- Update the Help text shown by `ShowKeyboardShortcuts()`.
+- Keep shortcut descriptions accurate, including modifier keys and step sizes.
+- If behavior changes from the current default, update wording so users can discover the new behavior.
+
+## PR/check checklist
+
+- New/changed shortcut present in Help.
+- Old shortcut wording removed or corrected.
+- Shortcut wording matches actual key handling in code.
+
+## Example
+
+- If `Ctrl+Up` and `Ctrl+Down` are added for zoom, Help must list both and note the 10% step.

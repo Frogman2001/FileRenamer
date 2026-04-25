@@ -1,0 +1,19 @@
+---
+description: Keep classes and logic split by clear responsibilities
+alwaysApply: true
+---
+
+# Separate Files, Clear Responsibilities
+
+- Prefer one primary responsibility per file.
+- Keep UI orchestration in window/page code-behind; move non-UI logic to dedicated services/helpers.
+- Use partial classes only to organize a single type by feature area, not to hide unrelated responsibilities.
+- Extract reusable logic into separate classes when methods are pure or broadly reusable.
+- Move nested data models to dedicated files when they are used outside a tiny local scope.
+- Keep file names descriptive and aligned with responsibility (for example, `RenameExecutionService`).
+
+## Practical guidance
+
+- If a file grows large because it mixes loading, navigation, mutation, and persistence, split by those concerns.
+- Preserve behavior first during refactors, then improve abstractions in follow-up changes.
+- Prefer small, composable services over adding more stateful methods to UI classes.

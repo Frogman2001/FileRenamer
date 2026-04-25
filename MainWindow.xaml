@@ -55,6 +55,14 @@
                         DockPanel.Dock="Right"
                         VerticalAlignment="Center"
                         Click="CloseButton_Click" />
+                <Button x:Name="HelpButton"
+                        Content="Help"
+                        Width="80"
+                        Margin="4,0,0,0"
+                        Padding="6,2"
+                        DockPanel.Dock="Right"
+                        VerticalAlignment="Center"
+                        Click="HelpButton_Click" />
             </DockPanel>
         </Border>
 
@@ -115,9 +123,17 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0"
-                                    Orientation="Horizontal"
-                                    Margin="0,0,0,4">
+                        <DockPanel Grid.Row="0"
+                                   LastChildFill="False"
+                                   Margin="0,0,0,4">
+                            <TextBlock x:Name="DisplayedFileCountTextBlock"
+                                       DockPanel.Dock="Right"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0"
+                                       FontSize="11"
+                                       Text="Files displayed: 0" />
+                            <StackPanel Orientation="Horizontal"
+                                        DockPanel.Dock="Left">
                             <Button x:Name="CheckAllButton"
                                     Content="Check All"
                                     FontSize="11"
@@ -135,7 +151,8 @@
                                     FontSize="11"
                                     Padding="4,1"
                                     Click="DeleteCheckedButton_Click" />
-                        </StackPanel>
+                            </StackPanel>
+                        </DockPanel>
 
                         <ListView x:Name="FilesListView"
                            Grid.Column="0"
@@ -169,8 +186,11 @@
                                 BorderBrush="#FFCCCCCC"
                                 BorderThickness="1"
                                 Background="White"
+                                MouseLeftButtonDown="PreviewArea_MouseLeftButtonDown"
+                                MouseLeftButtonUp="PreviewArea_MouseLeftButtonUp"
+                                MouseMove="PreviewArea_MouseMove"
                                 PreviewMouseWheel="View_PreviewMouseWheel">
-                            <Grid>
+                            <Grid ClipToBounds="True">
                                 <TextBlock x:Name="PreviewPlaceholderTextBlock"
                                            Text="Select a JPG file from the list to preview it here."
                                            Foreground="#FF777777"
@@ -183,10 +203,23 @@
                                          VerticalAlignment="Center">
                                     <Image x:Name="PreviewImage"
                                            Stretch="None"
-                                           Visibility="Collapsed">
+                                           Visibility="Collapsed"
+                                           RenderTransformOrigin="0.5,0.5">
                                         <Image.LayoutTransform>
-                                            <RotateTransform x:Name="PreviewRotateTransform" Angle="0" />
+                                            <TransformGroup>
+                                                <RotateTransform x:Name="PreviewRotateTransform" Angle="0" />
+                                            </TransformGroup>
                                         </Image.LayoutTransform>
+                                        <Image.RenderTransform>
+                                            <TransformGroup>
+                                                <ScaleTransform x:Name="PreviewScaleTransform"
+                                                                ScaleX="1"
+                                                                ScaleY="1" />
+                                                <TranslateTransform x:Name="PreviewTranslateTransform"
+                                                                    X="0"
+                                                                    Y="0" />
+                                            </TransformGroup>
+                                        </Image.RenderTransform>
                                     </Image>
                                 </Viewbox>
                             </Grid>
