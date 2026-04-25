@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -23,6 +24,7 @@ namespace FileRenamer
         private readonly ObservableCollection<string> _selectedFileNames = new();
         private readonly ObservableCollection<string> _proposedFileNames = new();
         private int _currentIndex = -1;
+        private int _previewRotationDegrees;
         private string _selectedFolderPath = string.Empty;
 
         public MainWindow()
@@ -46,11 +48,47 @@ namespace FileRenamer
             if (result == WinForms.DialogResult.OK &&
                 !string.IsNullOrWhiteSpace(dialog.SelectedPath))
             {
-                _selectedFolderPath = dialog.SelectedPath;
-                SelectedFolderTextBlock.Text = dialog.SelectedPath;
-                LoadFiles(dialog.SelectedPath);
-                RefreshRenamingLists();
+                SetSelectedFolderAndLoad(dialog.SelectedPath);
             }
+        }
+
+        private void SelectByFileButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "Select a file in the folder you want",
+                CheckFileExists = true,
+                CheckPathExists = true,
+                Multiselect = false,
+                Filter = "All files (*.*)|*.*"
+            };
+
+            if (!string.IsNullOrWhiteSpace(_selectedFolderPath) && Directory.Exists(_selectedFolderPath))
+            {
+                dialog.InitialDirectory = _selectedFolderPath;
+            }
+
+            var result = dialog.ShowDialog(this);
+            if (result != true || string.IsNullOrWhiteSpace(dialog.FileName))
+            {
+                return;
+            }
+
+            var folderPath = Path.GetDirectoryName(dialog.FileName);
+            if (string.IsNullOrWhiteSpace(folderPath))
+            {
+                return;
+            }
+
+            SetSelectedFolderAndLoad(folderPath);
+        }
+
+        private void SetSelectedFolderAndLoad(string folderPath)
+        {
+            _selectedFolderPath = folderPath;
+            SelectedFolderTextBlock.Text = folderPath;
+            LoadFiles(folderPath);
+            RefreshRenamingLists();
         }
 
         private void LoadFiles(string folderPath)
@@ -161,9 +199,11 @@ namespace FileRenamer
                 bitmap.EndInit();
                 bitmap.Freeze();
 
+                ResetPreviewRotation();
                 PreviewImage.Source = bitmap;
                 PreviewImage.Visibility = Visibility.Visible;
                 PreviewPlaceholderTextBlock.Visibility = Visibility.Collapsed;
+                SetRotateButtonsEnabled(true);
             }
             catch (Exception ex)
             {
@@ -180,9 +220,40 @@ namespace FileRenamer
 
         private void ClearPreview()
         {
+            ResetPreviewRotation();
             PreviewImage.Source = null;
             PreviewImage.Visibility = Visibility.Collapsed;
             PreviewPlaceholderTextBlock.Visibility = Visibility.Visible;
+            SetRotateButtonsEnabled(false);
+        }
+
+        private void ResetPreviewRotation()
+        {
+            _previewRotationDegrees = 0;
+            PreviewRotateTransform.Angle = 0;
+        }
+
+        private void ApplyPreviewRotation()
+        {
+            PreviewRotateTransform.Angle = _previewRotationDegrees;
+        }
+
+        private void SetRotateButtonsEnabled(bool enabled)
+        {
+            RotateLeftButton.IsEnabled = enabled;
+            RotateRightButton.IsEnabled = enabled;
+        }
+
+        private void RotateLeftButton_Click(object sender, RoutedEventArgs e)
+        {
+            _previewRotationDegrees = (_previewRotationDegrees - 90 + 360) % 360;
+            ApplyPreviewRotation();
+        }
+
+        private void RotateRightButton_Click(object sender, RoutedEventArgs e)
+        {
+            _previewRotationDegrees = (_previewRotationDegrees + 90) % 360;
+            ApplyPreviewRotation();
         }
 
         private void NextButton_Click(object sender, RoutedEventArgs e)
@@ -247,9 +318,33 @@ namespace FileRenamer
                 return;
             }
 
+            var modifiers = Keyboard.Modifiers;
+
+            if ((modifiers & ModifierKeys.Control) == ModifierKeys.Control &&
+                PreviewImage.Source is not null)
+            {
+                switch (e.Key)
+                {
+                    case Key.Right:
+                    case Key.R when (modifiers & ModifierKeys.Shift) != ModifierKeys.Shift:
+                        _previewRotationDegrees = (_previewRotationDegrees + 90) % 360;
+                        ApplyPreviewRotation();
+                        e.Handled = true;
+                        return;
+
+                    case Key.Left:
+                    case Key.R when (modifiers & ModifierKeys.Shift) == ModifierKeys.Shift:
+                        _previewRotationDegrees = (_previewRotationDegrees - 90 + 360) % 360;
+                        ApplyPreviewRotation();
+                        e.Handled = true;
+                        return;
+                }
+            }
+
             switch (e.Key)
             {
                 case Key.Down:
+                case Key.Right:
                     if (_files.Count > 0)
                     {
                         MoveToOffset(1);
@@ -259,6 +354,7 @@ namespace FileRenamer
                     break;
 
                 case Key.Up:
+                case Key.Left:
                     if (_files.Count > 0)
                     {
                         MoveToOffset(-1);

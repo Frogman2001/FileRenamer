@@ -65,24 +65,34 @@
                   Padding="4">
             <Grid Margin="0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            Margin="0,0,4,0">
+                    <Button x:Name="SelectFolderButton"
+                            Content="Select Folder"
+                            Padding="6,2"
+                            MinWidth="90"
+                            Margin="0,0,4,0"
+                            Click="SelectFolderButton_Click" />
+                    <Button x:Name="SelectByFileButton"
+                            Content="Select by File"
+                            Padding="6,2"
+                            MinWidth="100"
+                            Click="SelectByFileButton_Click" />
+                </StackPanel>
+
                 <TextBlock x:Name="SelectedFolderTextBlock"
-                           Grid.Column="0"
-                           Margin="0,0,4,0"
+                           Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Margin="4,0,0,0"
                            FontSize="14"
                            FontWeight="Bold"
                            Text="No folder selected."
                            TextWrapping="Wrap" />
-
-                <Button x:Name="SelectFolderButton"
-                        Grid.Column="1"
-                        Content="Select Folder"
-                        Padding="6,2"
-                        MinWidth="90"
-                        Click="SelectFolderButton_Click" />
             </Grid>
         </GroupBox>
 
@@ -128,6 +138,7 @@
                         </StackPanel>
 
                         <ListView x:Name="FilesListView"
+                           Grid.Column="0"
                                   Grid.Row="1"
                                   SelectionMode="Single"
                                   SelectionChanged="FilesListView_SelectionChanged">
@@ -172,14 +183,18 @@
                                          VerticalAlignment="Center">
                                     <Image x:Name="PreviewImage"
                                            Stretch="None"
-                                           Visibility="Collapsed" />
+                                           Visibility="Collapsed">
+                                        <Image.LayoutTransform>
+                                            <RotateTransform x:Name="PreviewRotateTransform" Angle="0" />
+                                        </Image.LayoutTransform>
+                                    </Image>
                                 </Viewbox>
                             </Grid>
                         </Border>
 
                         <StackPanel Grid.Row="1"
                                     Orientation="Horizontal"
-                                    HorizontalAlignment="Right"
+                                    HorizontalAlignment="Center"
                                     Margin="0,4,0,0">
                             <Button x:Name="PreviousButton"
                                     Content="Previous"
@@ -193,6 +208,20 @@
                                     Margin="0,0,4,0"
                                     Padding="6,2"
                                     Click="NextButton_Click" />
+                            <Button x:Name="RotateLeftButton"
+                                    Content="Rotate Left"
+                                    MinWidth="96"
+                                    Margin="0,0,4,0"
+                                    Padding="6,2"
+                                    IsEnabled="False"
+                                    Click="RotateLeftButton_Click" />
+                            <Button x:Name="RotateRightButton"
+                                    Content="Rotate Right"
+                                    MinWidth="96"
+                                    Margin="0,0,4,0"
+                                    Padding="6,2"
+                                    IsEnabled="False"
+                                    Click="RotateRightButton_Click" />
                             <Button x:Name="DeleteCurrentButton"
                                     Content="Delete"
                                     Width="80"
